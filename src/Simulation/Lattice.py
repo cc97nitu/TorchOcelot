@@ -10,11 +10,13 @@ class SIS18_Lattice_minimal(MagneticLattice):
         rb1 = elements.RBend(l=2.617993878, angle=0.2617993878, e1=0.1274090354, e2=0.1274090354)
         rb2 = elements.RBend(l=2.617993878, angle=0.2617993878, e1=0.1274090354, e2=0.1274090354)
 
-        qs1f = elements.Quadrupole(l=1.04, k1=3.12391e-01)
+        k1f = 3.12391e-01   # tune: 4.2
+        k1d = -4.78047e-01  # tune: 3.3
+        qs1f = elements.Quadrupole(l=1.04, k1=k1f)
         # qs1f = elements.Quadrupole(l=1.04, k1=3.05576e-01)
-        qs2d = elements.Quadrupole(l=1.04, k1=-4.78047e-01)
+        qs2d = elements.Quadrupole(l=1.04, k1=k1d)
         # qs2d = elements.Quadrupole(l=1.04, k1=-4.94363e-01)
-        qs3t = elements.Quadrupole(l=0.4804, k1=2 * 0.311872401)
+        qs3t = elements.Quadrupole(l=0.4804, k1=2 * k1f)
 
         d1 = elements.Drift(0.645)
         d2 = elements.Drift(0.9700000000000002)
