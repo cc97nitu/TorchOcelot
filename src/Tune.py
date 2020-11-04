@@ -56,7 +56,7 @@ if __name__ == "__main__":
     # find tune
     t0 = time.time()
 
-    turns = 100
+    turns = 400
 
     freqs, _ = getTuneFFT(x[0], model, turns)
     fftList = list()
