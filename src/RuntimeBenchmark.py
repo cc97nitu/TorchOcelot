@@ -39,12 +39,14 @@ if __name__ == "__main__":
     bunch.to(device)
 
     # track
+    turns = 100
+
     print("started tracking")
     particles = [10**i for i in range(1,6)]
-    benchmark = [[n, track(model, bunch[:n], 100,)] for n in particles]
+    benchmark = [[n, track(model, bunch[:n], turns,)] for n in particles]
 
     benchmark = np.array(benchmark)
     print(benchmark)
 
     # dump results
-    np.savetxt("../dump/runtimeBenchmark_{}.npy".format(device), benchmark)
+    np.savetxt("../dump/runtimeBenchmark_{}_turns={}.npy".format(device, turns), benchmark)
