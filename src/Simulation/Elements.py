@@ -28,9 +28,15 @@ class SecondOrderMap(nn.Module):
         w1Weights = torch.from_numpy(rMatrix)
         self.w1.weight = nn.Parameter(w1Weights)
 
-        self.w2 = torch.from_numpy(tMatrix)
-        self.w2 = torch.reshape(self.w2, (6,6,6))
-        self.w2.requires_grad_(True)
+        # self.w2 = torch.from_numpy(tMatrix)
+        # self.w2 = torch.reshape(self.w2, (6,6,6))
+        # self.w2.requires_grad_(True)
+
+        w2 = torch.from_numpy(tMatrix)
+        w2 = torch.reshape(w2, (6,6,6))
+        w2.requires_grad_(True)
+        self.register_parameter("w2", nn.Parameter(w2))
+
         return
 
     def forward(self, x):
@@ -41,6 +47,7 @@ class SecondOrderMap(nn.Module):
         x2 = torch.einsum("...i,...j->...ij", x, x)
         x2 = torch.einsum("...ij,bij->...b", x2, self.w2)
         return x1 + x2
+
 
 if __name__ == "__main__":
     from Lattice import SIS18_Lattice_minimal

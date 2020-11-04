@@ -17,13 +17,14 @@ lattice = SIS18_Lattice_minimal(nPasses=1)
 model = SecondOrderModel(lattice, dim)
 model.to(device)
 
+model.to("cpu")
 # load bunch
 print("loading bunch")
 bunch = np.loadtxt("../res/bunch_6d_n=1e5.txt.gz")
 bunch = torch.from_numpy(bunch)
 
 # track
-turns = int(1e2)  # turns during injection plateau
+turns = int(1e1)  # turns during injection plateau
 # turns = int(1.6e5)  # turns during injection plateau
 
 print("started tracking {:.0e} particles for {:.1e} turns".format(len(bunch), turns))

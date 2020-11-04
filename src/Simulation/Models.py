@@ -45,8 +45,16 @@ class SecondOrderModel(nn.Module):
 
         return
 
-    def forward(self, x):
-        for map in self.maps:
-            x = map(x)
+    def forward(self, x, outputPerElement: bool = False):
+        if outputPerElement:
+            outputs = list()
+            for map in self.maps:
+                x = map(x)
+                outputs.append(x)
 
-        return x
+            return outputs
+        else:
+            for map in self.maps:
+                x = map(x)
+
+            return x
