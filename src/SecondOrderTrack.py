@@ -17,7 +17,6 @@ lattice = SIS18_Lattice_minimal(nPasses=1)
 model = SecondOrderModel(lattice, dim)
 model.to(device)
 
-model.to("cpu")
 # load bunch
 print("loading bunch")
 bunch = np.loadtxt("../res/bunch_6d_n=1e5.txt.gz")

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # task name
-#SBATCH -J LinearTrack
+#SBATCH -J RuntimeBenchmark
 
 # set time limit
 #SBATCH --time=8:00:00
@@ -19,4 +19,4 @@
 
 # execute
 hostname
-python LinearTrack.py
+python RuntimeBenchmark.py
