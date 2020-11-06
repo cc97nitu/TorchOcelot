@@ -5,7 +5,9 @@ import torch.nn as nn
 
 
 class LinearMap(nn.Linear):
-    def __init__(self, rMatrix: numpy.ndarray):
+    def __init__(self, element, rMatrix: numpy.ndarray):
+        self.element = element
+
         # dimension of transfer matrix
         dim = rMatrix.shape
 
@@ -18,8 +20,9 @@ class LinearMap(nn.Linear):
 
 
 class SecondOrderMap(nn.Module):
-    def __init__(self, rMatrix: numpy.ndarray, tMatrix: numpy.ndarray):
+    def __init__(self, element, rMatrix: numpy.ndarray, tMatrix: numpy.ndarray):
         super(SecondOrderMap, self).__init__()
+        self.element = element
 
         # dimension of transfer matrix
         dim = rMatrix.shape
