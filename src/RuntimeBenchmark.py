@@ -9,9 +9,10 @@ from Simulation.Models import SecondOrderModel
 def track(model, bunch, turns: int):
 
     with torch.no_grad():
+        x = bunch.to(device)
+
         t0 = time.time()
 
-        x = bunch.to(device)
         for turn in range(turns):
             x = model(x)
 
@@ -34,7 +35,7 @@ if __name__ == "__main__":
 
     # load bunch
     print("loading bunch")
-    bunch = np.loadtxt("../res/bunch_6d_n=1e5.txt.gz")
+    bunch = np.loadtxt("../res/bunch_6d_n=1e6.txt.gz")
     bunch = torch.from_numpy(bunch)
     bunch.to(device)
 
@@ -42,11 +43,13 @@ if __name__ == "__main__":
     turns = 100
 
     print("started tracking")
-    particles = [10**i for i in range(1,6)]
+    model(bunch[:100])
+
+    particles = [10**i for i in range(1,3)]
     benchmark = [[n, track(model, bunch[:n], turns,)] for n in particles]
 
     benchmark = np.array(benchmark)
     print(benchmark)
 
     # dump results
-    np.savetxt("../dump/runtimeBenchmark_{}_turns={}.npy".format(device, turns), benchmark)
+    np.savetxt("../dump/runtimeBenchmark_{}_turns={}_v2.npy".format(device, turns), benchmark)
