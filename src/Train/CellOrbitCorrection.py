@@ -12,6 +12,8 @@ from ocelot.cpbd import elements
 import Simulation.Elements
 from Simulation.Lattice import SIS18_Cell_hCor
 from Simulation.Models import LinearModel
+import PlotTrajectory
+
 
 # create model of SIS18 cell
 dim = 6
@@ -22,10 +24,11 @@ model.requires_grad_(False)
 # load bunch
 bunch = np.loadtxt("../../res/bunch_6d_n=1e5.txt.gz")
 bunch = torch.from_numpy(bunch)
+bunch = bunch - bunch.permute(1, 0).mean(dim=1)  # set bunch centroid to 0 for each dim
 
 # build training set from ideal model
 with torch.no_grad():
-    bunchLabels = model(bunch)
+    bunchLabels = model(bunch, outputPerElement=True)
 
 trainSet = torch.utils.data.TensorDataset(bunch, bunchLabels)
 trainLoader = torch.utils.data.DataLoader(trainSet, batch_size=400,
@@ -65,28 +68,36 @@ optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 
 # train loop
 
-for epoch in range(3):
-    for inputs, labels in trainLoader:
+for epoch in range(10):
+    for i, data in enumerate(trainLoader):
+        inputs, labels = data
         # zero the parameter gradients
         optimizer.zero_grad()
 
         # forward, backward
-        output = model(inputs)
+        output = model(inputs, outputPerElement=True)
         loss = criterion(output, labels) + kickReg()
-        print(loss.item())
+        # loss = criterion(output, labels)
         loss.backward()
 
         # do step in gradient descent
         optimizer.step()
 
+        # # report progress
+        # if i % 100 == 99:
+        #     print(loss.item())
+
     # calculate loss over bunch
     with torch.no_grad():
-        loss = criterion(model(bunch), bunchLabels)
+        loss = criterion(model(bunch, outputPerElement=True), bunchLabels)
 
     print("loss: {}, regularization: {}".format(loss.item(), kickReg()))
 
 with torch.no_grad():
-    print("final loss: {}".format(criterion(bunchLabels, model(bunch)).item()))
+    print("final loss: {}".format(criterion(bunchLabels, model(bunch, outputPerElement=True)).item()))
+
+# plot trajectories from trained model
+PlotTrajectory.plotBeamCentroid(PlotTrajectory.track(model, bunch, 1), lattice)
 
 # what happened to the correctors?
 for m in model.modules():
