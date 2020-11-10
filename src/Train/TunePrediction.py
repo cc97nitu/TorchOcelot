@@ -31,10 +31,18 @@ model = LinearModel(lattice, dim)
 # create model of perturbed cell
 perturbedLattice = SIS18_Cell_minimal()
 
-for element in perturbedLattice.sequence:
+for element in reversed(perturbedLattice.sequence):
     if type(element) is elements.Quadrupole:
         # perturb first quadrupole
         element.k1 = 0.8 * element.k1
         break
 
+perturbedLattice.update_transfer_maps()
+
 perturbedModel = LinearModel(perturbedLattice, dim)
+
+maps = [(r, element.k1) for r, _, element, _ in lattice.getTransferMaps(dim)]
+pertMaps = [(r, element.k1) for r, _, element, _ in perturbedLattice.getTransferMaps(dim)]
+
+print(maps[-2])
+print(pertMaps[-2])
