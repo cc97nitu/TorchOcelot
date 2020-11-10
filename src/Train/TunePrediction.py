@@ -17,7 +17,7 @@ import PlotTrajectory
 
 
 # load bunch
-dim = 4
+dim = 2
 
 bunch = np.loadtxt("../../res/bunch_6d_n=1e5.txt.gz")
 bunch = torch.from_numpy(bunch)[:,:dim]
@@ -38,11 +38,46 @@ for element in reversed(perturbedLattice.sequence):
         break
 
 perturbedLattice.update_transfer_maps()
-
 perturbedModel = LinearModel(perturbedLattice, dim)
+perturbedModel.requires_grad_(False)
 
-maps = [(r, element.k1) for r, _, element, _ in lattice.getTransferMaps(dim)]
-pertMaps = [(r, element.k1) for r, _, element, _ in perturbedLattice.getTransferMaps(dim)]
+# build training set from perturbed model
+with torch.no_grad():
+    bunchLabels = perturbedModel(bunch, outputPerElement=True)
 
-print(maps[-2])
-print(pertMaps[-2])
+trainSet = torch.utils.data.TensorDataset(bunch, bunchLabels)
+trainLoader = torch.utils.data.DataLoader(trainSet, batch_size=400,
+                                          shuffle=True, num_workers=2)
+
+# optimization setup
+criterion = nn.MSELoss()
+optimizer = optim.SGD(model.parameters(), lr=0.0001, momentum=0.9)
+# optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+# train loop
+print(model.symplecticRegularization())
+
+for epoch in range(20):
+    for i, data in enumerate(trainLoader):
+        inputs, labels = data
+        # zero the parameter gradients
+        optimizer.zero_grad()
+
+        # forward, backward
+        output = model(inputs, outputPerElement=True)
+        loss = criterion(output, labels) + model.symplecticRegularization()
+        # loss = criterion(output, labels)
+        loss.backward()
+
+        # do step in gradient descent
+        optimizer.step()
+
+        # # report progress
+        # if i % 100 == 99:
+        #     print(loss.item())
+
+    # calculate loss over bunch
+    with torch.no_grad():
+        loss = criterion(model(bunch, outputPerElement=True), bunchLabels)
+
+    print("loss: {}, regularization: {}".format(loss.item(), model.symplecticRegularization()))

@@ -38,6 +38,15 @@ class LinearModel(Model):
 
         return
 
+    def symplecticRegularization(self):
+        """Sum up symplectic regularization penalties from all layers."""
+        penalties = list()
+        for map in self.maps:
+            penalties.append(map.symplecticRegularization())
+
+        penalties = torch.stack(penalties)
+        return penalties.sum()
+
 
 
 class SecondOrderModel(Model):
