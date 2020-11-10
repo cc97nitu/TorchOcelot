@@ -11,12 +11,31 @@ class LinearMap(nn.Linear):
         # dimension of transfer matrix
         dim = rMatrix.shape
 
+        # set symplectic structure matrix
+        if dim[0] == 2:
+            self.symStruct = torch.tensor([[0,1],[-1,0]], dtype=torch.double)
+        elif dim[0] == 4:
+            self.symStruct = torch.tensor([[0,1,0,0],[-1,0,0,0],[0,0,0,1],[0,0,-1,0]], dtype=torch.double)
+        elif dim[0] == 6:
+            self.symStruct = torch.tensor(
+                [[0,1,0,0,0,0],[-1,0,0,0,0,0],[0,0,0,1,0,0],[0,0,-1,0,0,0],[0,0,0,0,0,1],
+                 [0,0,0,0,-1,0]], dtype=torch.double)
+        else:
+            raise NotImplementedError("phase space dimension of {} not supported".format(dim))
+
         super().__init__(in_features=dim[0], out_features=dim[1], bias=False)
 
         # set initial weights
         weightMatrix = torch.from_numpy(rMatrix)
         self.weight = nn.Parameter(weightMatrix)
+
         return
+
+    def symplecticRegularization(self):
+        """Calculate norm of Transpose(J).S.J-S symplectic condition."""
+        penalty = torch.matmul(self.weight.transpose(1,0), torch.matmul(self.symStruct, self.weight)) - self.symStruct
+        penalty = torch.norm(penalty)
+        return penalty
 
 
 class SecondOrderMap(nn.Module):
@@ -27,14 +46,12 @@ class SecondOrderMap(nn.Module):
         # dimension of transfer matrix
         dim = rMatrix.shape
 
+        # first order
         self.w1 = nn.Linear(in_features=dim[0], out_features=dim[1], bias=False)
         w1Weights = torch.from_numpy(rMatrix)
         self.w1.weight = nn.Parameter(w1Weights)
 
-        # self.w2 = torch.from_numpy(tMatrix)
-        # self.w2 = torch.reshape(self.w2, (6,6,6))
-        # self.w2.requires_grad_(True)
-
+        # second order
         w2 = torch.from_numpy(tMatrix)
         w2 = torch.reshape(w2, (6,6,6))
         w2.requires_grad_(True)
@@ -57,11 +74,11 @@ if __name__ == "__main__":
 
     # get transfer map
     lattice = SIS18_Lattice_minimal()
-    latticeElementIterator = lattice.getTransferMaps()
+    latticeElementIterator = lattice.getTransferMaps(dim=2)
 
-    rMatrix, _, _, _ = next(latticeElementIterator)
+    rMatrix, _, element, _ = next(latticeElementIterator)
 
     # create layer
-    myLayer = LinearMap(rMatrix)
+    myLayer = LinearMap(element, rMatrix)
 
 

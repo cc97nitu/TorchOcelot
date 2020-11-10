@@ -16,12 +16,7 @@ class Lattice(MagneticLattice):
         # log element positions
         self.positions = list()
         self.endPositions = list()
-        totalLength = 0
-
-        for element in self.sequence:
-            self.positions.append(totalLength)
-            totalLength += element.l
-            self.endPositions.append(totalLength)
+        self.logElementPositions()
 
         return
 
@@ -40,6 +35,18 @@ class Lattice(MagneticLattice):
             tMatrix = tMatrix[:dim, :dim, :dim].reshape((dim, -1))
 
             yield rMatrix, tMatrix, element, elementLength
+
+    def logElementPositions(self):
+        """Store beginning and end of each element."""
+        self.positions = list()
+        self.endPositions = list()
+        totalLength = 0
+
+        for element in self.sequence:
+            self.positions.append(totalLength)
+            totalLength += element.l
+            self.endPositions.append(totalLength)
+
 
 
 class DummyLattice(Lattice):

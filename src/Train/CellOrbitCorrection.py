@@ -16,14 +16,14 @@ import PlotTrajectory
 
 
 # create model of SIS18 cell
-dim = 6
+dim = 4
 lattice = SIS18_Cell_hCor()
 model = LinearModel(lattice, dim)
 model.requires_grad_(False)
 
 # load bunch
 bunch = np.loadtxt("../../res/bunch_6d_n=1e5.txt.gz")
-bunch = torch.from_numpy(bunch)
+bunch = torch.from_numpy(bunch)[:,:4]
 bunch = bunch - bunch.permute(1, 0).mean(dim=1)  # set bunch centroid to 0 for each dim
 
 # build training set from ideal model
@@ -38,7 +38,8 @@ trainLoader = torch.utils.data.DataLoader(trainSet, batch_size=400,
 for m in model.modules():
     if type(m) is Simulation.Elements.LinearMap:
         if type(m.element) is elements.RBend:
-            bias = torch.tensor([0,1e-3,0,0,0,0], dtype=torch.double)
+            bias = torch.zeros(dim, dtype=torch.double)
+            bias[1] = 1e-3
             m.bias = nn.Parameter(bias)
             m.bias.requires_grad_(False)
             break
@@ -48,19 +49,10 @@ kicks = list()
 for m in model.modules():
     if type(m) is Simulation.Elements.LinearMap:
         if type(m.element) is elements.Hcor:
-            bias = torch.zeros(6, dtype=torch.double)
+            bias = torch.zeros(dim, dtype=torch.double)
             m.bias = nn.Parameter(bias)
             m.bias.requires_grad_(True)
             kicks.append(m.bias)
-
-# custom loss
-def kickReg():
-    loss = torch.tensor(0, dtype=torch.double)
-
-    for bias in kicks:
-        loss += bias[[0,2,3,4,5]].norm()
-
-    return loss
 
 # optimization setup
 criterion = nn.MSELoss()
@@ -76,8 +68,8 @@ for epoch in range(10):
 
         # forward, backward
         output = model(inputs, outputPerElement=True)
-        loss = criterion(output, labels) + kickReg()
-        # loss = criterion(output, labels)
+        # loss = criterion(output, labels) + 2 * kickReg()
+        loss = criterion(output, labels)
         loss.backward()
 
         # do step in gradient descent
@@ -91,7 +83,7 @@ for epoch in range(10):
     with torch.no_grad():
         loss = criterion(model(bunch, outputPerElement=True), bunchLabels)
 
-    print("loss: {}, regularization: {}".format(loss.item(), kickReg()))
+    print("loss: {}, regularization: {}".format(loss.item(), None))
 
 with torch.no_grad():
     print("final loss: {}".format(criterion(bunchLabels, model(bunch, outputPerElement=True)).item()))
@@ -105,4 +97,3 @@ for m in model.modules():
         if type(m.element) is elements.Hcor:
             print(m.bias)
 
-print("regularization: {}".format(kickReg()))
