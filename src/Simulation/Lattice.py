@@ -145,8 +145,10 @@ class SIS18_Cell(Lattice):
     """SIS18 cell consisting of dipoles and quadrupoles."""
     def __init__(self):
         # specify beam line elements
-        rb1 = elements.RBend(l=2.617993878, angle=0.2617993878, e1=0.1274090354, e2=0.1274090354)
-        rb2 = elements.RBend(l=2.617993878, angle=0.2617993878, e1=0.1274090354, e2=0.1274090354)
+        rb1a = elements.RBend(l=2.617993878 / 2, angle=0.2617993878 / 2, e1=0.1274090354, e2=0)
+        rb1b = elements.RBend(l=2.617993878 / 2, angle=0.2617993878 / 2, e1=0, e2=0.1274090354)
+        rb2a = elements.RBend(l=2.617993878 / 2, angle=0.2617993878 / 2, e1=0.1274090354, e2=0)
+        rb2b = elements.RBend(l=2.617993878 / 2, angle=0.2617993878 / 2, e1=0, e2=0.1274090354)
 
         k1f = 3.12391e-01   # tune: 4.2 (whole ring)
         k1d = -4.78047e-01  # tune: 3.3
@@ -156,6 +158,10 @@ class SIS18_Cell(Lattice):
 
         ks1c = elements.Sextupole(l=0.32, k2=0)
         ks3c = elements.Sextupole(l=0.32, k2=0)
+
+        hKick1 = elements.Hcor(0)
+        hKick2 = elements.Hcor(0)
+        vKick = elements.Vcor(0)
 
         hMon = elements.Monitor(0.13275)
         vMon = elements.Monitor(0.13275)
@@ -172,7 +178,7 @@ class SIS18_Cell(Lattice):
         d6b = elements.Drift(0.3308)
 
         # set up beam line
-        cell = [d1, rb1, d2, rb2, d3a, ks1c, d3b, qs1f, d4, qs2d, d5a, ks3c, d5b, qs3t, d6a, hMon, vMon, d6b]
+        cell = [d1, rb1a, hKick1, rb1b, d2, rb2a, hKick2, rb2b, d3a, ks1c, d3b, qs1f, vKick, d4, qs2d, d5a, ks3c, d5b, qs3t, d6a, hMon, vMon, d6b]
 
         super().__init__(cell)
 
@@ -250,10 +256,9 @@ if __name__ == "__main__":
     for r, t, element, length in lattice.getTransferMaps(dim=6):
         print("{} length={}".format(type(element), length))
 
-        if type(element) is elements.Monitor:
-            print(r, t)
+        if type(element) is elements.Vcor:
+            # print(r, t)
+            pass
 
     lastQuad = lattice.sequence[-2]
 
-    sextLattice = SIS18_Cell_sext()
-    print(sextLattice.totalLen - lattice.totalLen)

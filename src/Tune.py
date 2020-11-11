@@ -45,12 +45,12 @@ if __name__ == "__main__":
     # create model of SIS18
     dim = 6
     dtype = torch.float32
-    lattice = SIS18_Lattice_minimal(nPasses=1)
-    # lattice = SIS18_Lattice(nPasses=1)
+    # lattice = SIS18_Lattice_minimal(nPasses=1)
+    lattice = SIS18_Lattice(nPasses=1)
     model = SecondOrderModel(lattice, dim, dtype=dtype)
 
     # set up particles
-    dp = np.linspace(-5e-3, 5e-3, 5)
+    dp = np.linspace(-5e-3, 5e-3, 9)
     x = torch.tensor([[1e-2,0,1e-2,0,0,i] for i in dp], dtype=dtype)
     # x = torch.tensor([[1e-2,0,1e-2,0,0,0],], dtype=torch.double)
 
@@ -58,7 +58,7 @@ if __name__ == "__main__":
     # find tune
     t0 = time.time()
 
-    turns = 400
+    turns = 500
 
     freqs, _ = getTuneFFT(x[0], model, turns)
     fftList = list()
