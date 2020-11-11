@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import torch
 import torch.fft
 
-from Simulation.Lattice import SIS18_Lattice_minimal
+from Simulation.Lattice import SIS18_Lattice_minimal, SIS18_Lattice
 from Simulation.Models import LinearModel, SecondOrderModel
 
 
@@ -44,12 +44,14 @@ def getTuneFFT(x: torch.Tensor, model, turns: int):
 if __name__ == "__main__":
     # create model of SIS18
     dim = 6
+    dtype = torch.float32
     lattice = SIS18_Lattice_minimal(nPasses=1)
-    model = SecondOrderModel(lattice, dim)
+    # lattice = SIS18_Lattice(nPasses=1)
+    model = SecondOrderModel(lattice, dim, dtype=dtype)
 
     # set up particles
     dp = np.linspace(-5e-3, 5e-3, 5)
-    x = torch.tensor([[1e-2,0,1e-2,0,0,i] for i in dp], dtype=torch.double)
+    x = torch.tensor([[1e-2,0,1e-2,0,0,i] for i in dp], dtype=dtype)
     # x = torch.tensor([[1e-2,0,1e-2,0,0,0],], dtype=torch.double)
 
 

@@ -22,7 +22,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dtype = torch.double
 
 # load bunch
-dim = 6
+dim = 4
 
 bunch = np.loadtxt("../../res/bunch_6d_n=1e5.txt.gz")
 bunch = torch.as_tensor(bunch, dtype=dtype)[:,:dim]
@@ -69,7 +69,7 @@ optimizer = optim.SGD(model.parameters(), lr=0.0001, momentum=0.9)
 # train loop
 print(model.symplecticRegularization())
 
-for epoch in range(50):
+for epoch in range(500):
     for i, data in enumerate(trainLoader):
         inputs, labels = data
         # zero the parameter gradients

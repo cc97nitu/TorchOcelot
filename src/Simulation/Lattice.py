@@ -108,6 +108,93 @@ class SIS18_Cell_minimal(Lattice):
         return
 
 
+class SIS18_Cell_sext(Lattice):
+    """SIS18 cell consisting of dipoles and quadrupoles."""
+    def __init__(self):
+        # specify beam line elements
+        rb1 = elements.RBend(l=2.617993878, angle=0.2617993878, e1=0.1274090354, e2=0.1274090354)
+        rb2 = elements.RBend(l=2.617993878, angle=0.2617993878, e1=0.1274090354, e2=0.1274090354)
+
+        k1f = 3.12391e-01   # tune: 4.2 (whole ring)
+        k1d = -4.78047e-01  # tune: 3.3
+        qs1f = elements.Quadrupole(l=1.04, k1=k1f)
+        qs2d = elements.Quadrupole(l=1.04, k1=k1d)
+        qs3t = elements.Quadrupole(l=0.4804, k1=2 * k1f)
+
+        ks1c = elements.Sextupole(l=0.32, k2=0)
+        ks3c = elements.Sextupole(l=0.32, k2=0)
+
+        d1 = elements.Drift(0.645)
+        d2 = elements.Drift(0.9700000000000002)
+        d3a = elements.Drift(6.345)
+        d3b = elements.Drift(0.175)
+        d4 = elements.Drift(0.5999999999999979)
+        d5a = elements.Drift(0.195)
+        d5b = elements.Drift(0.195)
+        d6 = elements.Drift(0.49979999100000283)
+
+        # set up beam line
+        cell = [d1, rb1, d2, rb2, d3a, ks1c, d3b, qs1f, d4, qs2d, d5a, ks3c, d5b, qs3t, d6]
+
+        super().__init__(cell)
+
+        return
+
+
+class SIS18_Cell(Lattice):
+    """SIS18 cell consisting of dipoles and quadrupoles."""
+    def __init__(self):
+        # specify beam line elements
+        rb1 = elements.RBend(l=2.617993878, angle=0.2617993878, e1=0.1274090354, e2=0.1274090354)
+        rb2 = elements.RBend(l=2.617993878, angle=0.2617993878, e1=0.1274090354, e2=0.1274090354)
+
+        k1f = 3.12391e-01   # tune: 4.2 (whole ring)
+        k1d = -4.78047e-01  # tune: 3.3
+        qs1f = elements.Quadrupole(l=1.04, k1=k1f)
+        qs2d = elements.Quadrupole(l=1.04, k1=k1d)
+        qs3t = elements.Quadrupole(l=0.4804, k1=2 * k1f)
+
+        ks1c = elements.Sextupole(l=0.32, k2=0)
+        ks3c = elements.Sextupole(l=0.32, k2=0)
+
+        hMon = elements.Monitor(0.13275)
+        vMon = elements.Monitor(0.13275)
+
+        d1 = elements.Drift(0.2)
+        d2 = elements.Drift(0.9700000000000002)
+        d3a = elements.Drift(6.345)
+        d3b = elements.Drift(0.175)
+        d4 = elements.Drift(0.5999999999999979)
+        d5a = elements.Drift(0.195)
+        d5b = elements.Drift(0.195)
+        d6 = elements.Drift(0.49979999100000283)
+        d6a = elements.Drift(0.3485)
+        d6b = elements.Drift(0.3308)
+
+        # set up beam line
+        cell = [d1, rb1, d2, rb2, d3a, ks1c, d3b, qs1f, d4, qs2d, d5a, ks3c, d5b, qs3t, d6a, hMon, vMon, d6b]
+
+        super().__init__(cell)
+
+        return
+
+
+class SIS18_Lattice(Lattice):
+    """SIS18 multiturn lattice consisting of dipoles and quadrupoles."""
+    def __init__(self, nPasses: int = 1):
+        # set up cell
+        cell = SIS18_Cell()
+
+        # ring consists of 12 cells
+        lattice = list()
+        for i in range(12 * nPasses):
+            lattice += cell.sequence
+
+        super(SIS18_Lattice, self).__init__(lattice)
+        return
+
+
+
 class SIS18_Lattice_minimal(Lattice):
     """SIS18 multiturn lattice consisting of dipoles and quadrupoles."""
     def __init__(self, nPasses: int = 1):
@@ -158,11 +245,15 @@ class SIS18_Cell_hCor(Lattice):
 
 
 if __name__ == "__main__":
-    lattice = DummyLattice()
+    lattice = SIS18_Cell()
 
     for r, t, element, length in lattice.getTransferMaps(dim=6):
         print("{} length={}".format(type(element), length))
 
+        if type(element) is elements.Monitor:
+            print(r, t)
+
     lastQuad = lattice.sequence[-2]
 
-    print("num elements: {}".format(len(lattice.sequence)))
+    sextLattice = SIS18_Cell_sext()
+    print(sextLattice.totalLen - lattice.totalLen)
