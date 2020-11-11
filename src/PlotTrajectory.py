@@ -33,21 +33,19 @@ def track(model, bunch, turns: int):
     return trackResults
 
 
-def plotTrajectories(trackResults, lattice):
+def plotTrajectories(ax, trackResults, lattice):
     """Plot individual trajectories."""
     pos = [lattice.endPositions[i % len(lattice.endPositions)] + i // len(lattice.endPositions) * lattice.totalLen
            for i in range(trackResults.size(2))]
 
     for particle in trackResults:
         # x-coord
-        plt.plot(pos, particle[0])
+        ax.plot(pos, particle[0])
 
-    plt.show()
-    plt.close()
     return
 
 
-def plotBeamCentroid(trackResults, lattice):
+def plotBeamCentroid(ax, trackResults, lattice):
     """Plot beam centroid."""
     pos = [lattice.endPositions[i % len(lattice.endPositions)] + i // len(lattice.endPositions) * lattice.totalLen
            for i in range(trackResults.size(2))]
@@ -55,13 +53,11 @@ def plotBeamCentroid(trackResults, lattice):
     trackResults = trackResults.permute((1, 2, 0))  # dim, element, particle
     beamCentroid = torch.mean(trackResults, dim=2)
 
-    plt.plot(pos, beamCentroid[0].numpy())
-    plt.show()
-    plt.close()
+    ax.plot(pos, beamCentroid[0].numpy())
     return
 
 
-def plotBeamSigma(trackResults, lattice):
+def plotBeamSigma(ax, trackResults, lattice):
     """Plot beam size as standard deviation of position."""
     pos = [lattice.endPositions[i % len(lattice.endPositions)] + i // len(lattice.endPositions) * lattice.totalLen
            for i in range(trackResults.size(2))]
@@ -69,9 +65,11 @@ def plotBeamSigma(trackResults, lattice):
     trackResults = trackResults.permute((1, 2, 0))  # dim, element, particle
     beamSigma = torch.std(trackResults, dim=2)
 
-    plt.plot(pos, beamSigma[0].numpy())
-    plt.show()
-    plt.close()
+    # plt.plot(pos, beamSigma[0].numpy())
+    # plt.show()
+    # plt.close()
+    ax.plot(pos, beamSigma[0].numpy())
+    return
 
 
 if __name__ == "__main__":
@@ -91,9 +89,13 @@ if __name__ == "__main__":
     # visualize accelerator
     trackResults = track(model, bunch, 6)
 
-    plotTrajectories(trackResults, lattice)
-    plotBeamCentroid(trackResults, lattice)
-    plotBeamSigma(trackResults, lattice)
+    fig, axes = plt.subplots(3, sharex=True)
+    plotTrajectories(axes[0], trackResults, lattice)
+    plotBeamCentroid(axes[1], trackResults, lattice)
+    plotBeamSigma(axes[2], trackResults, lattice)
+
+    plt.show()
+    plt.close()
 
     ########################################################################
     bunchCentroid = bunch.permute(1, 0).mean(dim=1)  # dim, particle

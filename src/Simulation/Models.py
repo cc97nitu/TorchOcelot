@@ -26,14 +26,14 @@ class Model(nn.Module):
 
 
 class LinearModel(Model):
-    def __init__(self, lattice, dim=4):
+    def __init__(self, lattice, dim=4, dtype: torch.dtype = torch.float32):
         super().__init__(lattice)
 
         # create maps
         self.maps = nn.ModuleList()
 
         for rMatrix, _, element, _ in lattice.getTransferMaps(dim=dim):
-            layer = LinearMap(element, rMatrix)
+            layer = LinearMap(element, rMatrix, dtype=dtype)
             self.maps.append(layer)
 
         return
@@ -50,14 +50,14 @@ class LinearModel(Model):
 
 
 class SecondOrderModel(Model):
-    def __init__(self, lattice, dim=4):
+    def __init__(self, lattice, dim=4, dtype: torch.dtype = torch.float32):
         super().__init__(lattice)
 
         # create maps
         self.maps = nn.ModuleList()
 
         for rMatrix, tMatrix, element, _ in lattice.getTransferMaps(dim=dim):
-            layer = SecondOrderMap(element, rMatrix, tMatrix)
+            layer = SecondOrderMap(element, rMatrix, tMatrix, dtype=dtype)
             self.maps.append(layer)
 
         return

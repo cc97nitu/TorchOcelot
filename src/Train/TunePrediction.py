@@ -2,6 +2,8 @@ import sys
 sys.path.append("../")
 
 import numpy as np
+import matplotlib.pyplot as plt
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -15,31 +17,41 @@ from Simulation.Models import LinearModel
 import PlotTrajectory
 
 
+# specify device and dtype
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+dtype = torch.double
 
 # load bunch
-dim = 2
+dim = 6
 
 bunch = np.loadtxt("../../res/bunch_6d_n=1e5.txt.gz")
-bunch = torch.from_numpy(bunch)[:,:dim]
+bunch = torch.as_tensor(bunch, dtype=dtype)[:,:dim]
+bunch.to(device)
 bunch = bunch - bunch.permute(1, 0).mean(dim=1)  # set bunch centroid to 0 for each dim
 
 # create model of SIS18 cell
 lattice = SIS18_Cell_minimal()
-model = LinearModel(lattice, dim)
+model = LinearModel(lattice, dim, dtype).to(device)
 # model.requires_grad_(False)
 
 # create model of perturbed cell
 perturbedLattice = SIS18_Cell_minimal()
 
-for element in reversed(perturbedLattice.sequence):
+for element in perturbedLattice.sequence:
     if type(element) is elements.Quadrupole:
         # perturb first quadrupole
-        element.k1 = 0.8 * element.k1
+        element.k1 = 0.4 * element.k1
         break
 
 perturbedLattice.update_transfer_maps()
-perturbedModel = LinearModel(perturbedLattice, dim)
+perturbedModel = LinearModel(perturbedLattice, dim, dtype).to(device)
 perturbedModel.requires_grad_(False)
+
+# plot envelope
+fig, axes = plt.subplots(3, sharex=True)
+
+PlotTrajectory.plotBeamSigma(axes[0], PlotTrajectory.track(model, bunch, 1), lattice)
+PlotTrajectory.plotBeamSigma(axes[1], PlotTrajectory.track(perturbedModel, bunch, 1), perturbedLattice)
 
 # build training set from perturbed model
 with torch.no_grad():
@@ -57,7 +69,7 @@ optimizer = optim.SGD(model.parameters(), lr=0.0001, momentum=0.9)
 # train loop
 print(model.symplecticRegularization())
 
-for epoch in range(20):
+for epoch in range(50):
     for i, data in enumerate(trainLoader):
         inputs, labels = data
         # zero the parameter gradients
@@ -81,3 +93,9 @@ for epoch in range(20):
         loss = criterion(model(bunch, outputPerElement=True), bunchLabels)
 
     print("loss: {}, regularization: {}".format(loss.item(), model.symplecticRegularization()))
+
+# plot envelope of trained model
+PlotTrajectory.plotBeamSigma(axes[2], PlotTrajectory.track(model, bunch, 1), lattice)
+
+plt.show()
+plt.close()

@@ -5,7 +5,7 @@ import torch.nn as nn
 
 
 class LinearMap(nn.Linear):
-    def __init__(self, element, rMatrix: numpy.ndarray):
+    def __init__(self, element, rMatrix: numpy.ndarray, dtype: torch.dtype = torch.float32):
         self.element = element
 
         # dimension of transfer matrix
@@ -13,20 +13,20 @@ class LinearMap(nn.Linear):
 
         # set symplectic structure matrix
         if dim[0] == 2:
-            self.symStruct = torch.tensor([[0,1],[-1,0]], dtype=torch.double)
+            self.symStruct = torch.tensor([[0,1],[-1,0]], dtype=dtype)
         elif dim[0] == 4:
-            self.symStruct = torch.tensor([[0,1,0,0],[-1,0,0,0],[0,0,0,1],[0,0,-1,0]], dtype=torch.double)
+            self.symStruct = torch.tensor([[0,1,0,0],[-1,0,0,0],[0,0,0,1],[0,0,-1,0]], dtype=dtype)
         elif dim[0] == 6:
             self.symStruct = torch.tensor(
                 [[0,1,0,0,0,0],[-1,0,0,0,0,0],[0,0,0,1,0,0],[0,0,-1,0,0,0],[0,0,0,0,0,1],
-                 [0,0,0,0,-1,0]], dtype=torch.double)
+                 [0,0,0,0,-1,0]], dtype=dtype)
         else:
             raise NotImplementedError("phase space dimension of {} not supported".format(dim))
 
         super().__init__(in_features=dim[0], out_features=dim[1], bias=False)
 
         # set initial weights
-        weightMatrix = torch.from_numpy(rMatrix)
+        weightMatrix = torch.as_tensor(rMatrix, dtype=dtype)
         self.weight = nn.Parameter(weightMatrix)
 
         return
@@ -39,7 +39,7 @@ class LinearMap(nn.Linear):
 
 
 class SecondOrderMap(nn.Module):
-    def __init__(self, element, rMatrix: numpy.ndarray, tMatrix: numpy.ndarray):
+    def __init__(self, element, rMatrix: numpy.ndarray, tMatrix: numpy.ndarray, dtype: torch.dtype = torch.float32):
         super(SecondOrderMap, self).__init__()
         self.element = element
 
@@ -48,11 +48,11 @@ class SecondOrderMap(nn.Module):
 
         # first order
         self.w1 = nn.Linear(in_features=dim[0], out_features=dim[1], bias=False)
-        w1Weights = torch.from_numpy(rMatrix)
+        w1Weights = torch.as_tensor(rMatrix, dtype=dtype)
         self.w1.weight = nn.Parameter(w1Weights)
 
         # second order
-        w2 = torch.from_numpy(tMatrix)
+        w2 = torch.as_tensor(tMatrix, dtype=dtype)
         w2 = torch.reshape(w2, (6,6,6))
         w2.requires_grad_(True)
         self.register_parameter("w2", nn.Parameter(w2))
