@@ -15,11 +15,12 @@ import Simulation.Elements
 from Simulation.Lattice import SIS18_Lattice
 from Simulation.Models import LinearModel
 import PlotTrajectory
-
+from Tune import getTuneChromaticity
 
 # specify device and dtype
 dtype = torch.double
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("running on {}".format(device))
 
 # load bunch
 dim = 6
@@ -32,7 +33,7 @@ bunch = bunch - bunch.permute(1, 0).mean(dim=1)  # set bunch centroid to 0 for e
 # create model of SIS18 cell
 lattice = SIS18_Lattice()
 model = LinearModel(lattice, dim, dtype).to(device)
-# model.requires_grad_(False)
+model.setTrainable("quadrupoles")
 
 # create model of perturbed cell
 perturbedLattice = SIS18_Lattice()
@@ -67,13 +68,13 @@ trainLoader = torch.utils.data.DataLoader(trainSet, batch_size=400,
 
 # optimization setup
 criterion = nn.MSELoss()
-optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
-# optimizer = optim.Adam(model.parameters(), lr=0.001)
+# optimizer = optim.SGD(model.parameters(), lr=0.0001, momentum=0.9)
+optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 # train loop
 print(model.symplecticRegularization())
 
-for epoch in range(5):
+for epoch in range(15):
     for i, data in enumerate(trainLoader):
         inputs, labels = data
         # zero the parameter gradients
@@ -104,3 +105,6 @@ axes[2].set_ylabel("after")
 
 plt.show()
 plt.close()
+
+# get tune and chromaticity
+print("tune: {}, chromaticity: {}".format(*getTuneChromaticity(model, 200, dtype)))
