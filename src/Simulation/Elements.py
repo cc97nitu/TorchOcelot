@@ -13,17 +13,18 @@ class LinearMap(nn.Linear):
 
         # set symplectic structure matrix
         if dim[0] == 2:
-            self.symStruct = torch.tensor([[0,1],[-1,0]], dtype=dtype)
+            symStruct = torch.tensor([[0,1],[-1,0]], dtype=dtype)
         elif dim[0] == 4:
-            self.symStruct = torch.tensor([[0,1,0,0],[-1,0,0,0],[0,0,0,1],[0,0,-1,0]], dtype=dtype)
+            symStruct = torch.tensor([[0,1,0,0],[-1,0,0,0],[0,0,0,1],[0,0,-1,0]], dtype=dtype)
         elif dim[0] == 6:
-            self.symStruct = torch.tensor(
+            symStruct = torch.tensor(
                 [[0,1,0,0,0,0],[-1,0,0,0,0,0],[0,0,0,1,0,0],[0,0,-1,0,0,0],[0,0,0,0,0,1],
                  [0,0,0,0,-1,0]], dtype=dtype)
         else:
             raise NotImplementedError("phase space dimension of {} not supported".format(dim))
 
         super().__init__(in_features=dim[0], out_features=dim[1], bias=False)
+        self.register_buffer("symStruct", symStruct)
 
         # set initial weights
         weightMatrix = torch.as_tensor(rMatrix, dtype=dtype)

@@ -9,6 +9,9 @@ from Simulation.Models import LinearModel
 
 
 def track(model, bunch, turns: int):
+    device = next(model.parameters()).device
+    bunch.to(device)
+
     # track
     print("started tracking {:.0e} particles for {:.1e} turns".format(len(bunch), turns))
 
@@ -53,7 +56,7 @@ def plotBeamCentroid(ax, trackResults, lattice):
     trackResults = trackResults.permute((1, 2, 0))  # dim, element, particle
     beamCentroid = torch.mean(trackResults, dim=2)
 
-    ax.plot(pos, beamCentroid[0].numpy())
+    ax.plot(pos, beamCentroid[0].to("cpu").numpy())
     return
 
 
@@ -68,7 +71,7 @@ def plotBeamSigma(ax, trackResults, lattice):
     # plt.plot(pos, beamSigma[0].numpy())
     # plt.show()
     # plt.close()
-    ax.plot(pos, beamSigma[0].numpy())
+    ax.plot(pos, beamSigma[0].to("cpu").numpy())
     return
 
 

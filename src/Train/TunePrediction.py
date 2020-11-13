@@ -1,6 +1,7 @@
 import sys
 sys.path.append("../")
 
+import time
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -18,8 +19,9 @@ import PlotTrajectory
 from Tune import getTuneChromaticity
 
 # specify device and dtype
-dtype = torch.double
+dtype = torch.float32
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# device = torch.device("cpu")
 print("running on {}".format(device))
 
 # load bunch
@@ -27,12 +29,16 @@ dim = 6
 
 bunch = np.loadtxt("../../res/bunch_6d_n=1e5.txt.gz")
 bunch = torch.as_tensor(bunch, dtype=dtype)[:,:dim]
-bunch.to(device)
+# bunch = torch.ones(bunch.shape, dtype=dtype)
 bunch = bunch - bunch.permute(1, 0).mean(dim=1)  # set bunch centroid to 0 for each dim
+bunch = bunch.to(device)
+
+print(bunch.device)
 
 # create model of SIS18 cell
 lattice = SIS18_Lattice()
-model = LinearModel(lattice, dim, dtype).to(device)
+model = LinearModel(lattice, dim, dtype)
+model = model.to(device)
 model.setTrainable("quadrupoles")
 
 # create model of perturbed cell
@@ -45,7 +51,8 @@ for element in perturbedLattice.sequence:
         break
 
 perturbedLattice.update_transfer_maps()
-perturbedModel = LinearModel(perturbedLattice, dim, dtype).to(device)
+perturbedModel = LinearModel(perturbedLattice, dim, dtype)
+perturbedModel = perturbedModel.to(device)
 perturbedModel.requires_grad_(False)
 
 # plot envelope
@@ -62,8 +69,11 @@ axes[1].set_ylabel("perturbed")
 with torch.no_grad():
     bunchLabels = perturbedModel(bunch, outputPerElement=True)
 
+bunch = bunch.to("cpu")
+bunchLabels = bunchLabels.to("cpu")
+
 trainSet = torch.utils.data.TensorDataset(bunch, bunchLabels)
-trainLoader = torch.utils.data.DataLoader(trainSet, batch_size=400,
+trainLoader = torch.utils.data.DataLoader(trainSet, batch_size=100,
                                           shuffle=True, num_workers=2)
 
 # optimization setup
@@ -74,9 +84,12 @@ optimizer = optim.Adam(model.parameters(), lr=0.001)
 # train loop
 print(model.symplecticRegularization())
 
-for epoch in range(15):
+t0 = time.time()
+for epoch in range(5):
     for i, data in enumerate(trainLoader):
-        inputs, labels = data
+        # inputs, labels = data
+        inputs, labels = data[0].to(device), data[1].to(device)
+
         # zero the parameter gradients
         optimizer.zero_grad()
 
@@ -93,18 +106,22 @@ for epoch in range(15):
         # if i % 100 == 99:
         #     print(loss.item())
 
-    # calculate loss over bunch
-    with torch.no_grad():
-        loss = criterion(model(bunch, outputPerElement=True), bunchLabels)
+    print("epoch: {}".format(epoch))
+    # # calculate loss over bunch
+    # print("loss over bunch")
+    # with torch.no_grad():
+    #     loss = criterion(model(bunch, outputPerElement=True), bunchLabels)
+    #
+    # print("loss: {}, regularization: {}".format(loss.item(), model.symplecticRegularization()))
 
-    print("loss: {}, regularization: {}".format(loss.item(), model.symplecticRegularization()))
+print("training completed within {:.2f}s".format(time.time() - t0))
 
 # plot envelope of trained model
-PlotTrajectory.plotBeamSigma(axes[2], PlotTrajectory.track(model, bunch, 1), lattice)
+PlotTrajectory.plotBeamSigma(axes[2], PlotTrajectory.track(model, bunch.to(device), 1), lattice)
 axes[2].set_ylabel("after")
 
 plt.show()
 plt.close()
 
-# get tune and chromaticity
-print("tune: {}, chromaticity: {}".format(*getTuneChromaticity(model, 200, dtype)))
+# # get tune and chromaticity
+# print("tune: {}, chromaticity: {}".format(*getTuneChromaticity(model, 200, dtype)))
