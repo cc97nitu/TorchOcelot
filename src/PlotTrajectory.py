@@ -76,13 +76,14 @@ if __name__ == "__main__":
     # create model of SIS18
     print("building model")
     dim = 6
+    dtype = torch.float32
     lattice = SIS18_Lattice_minimal(nPasses=1)
-    model = LinearModel(lattice, dim)
+    model = LinearModel(lattice, dim, dtype=dtype)
 
     # load bunch
     print("loading bunch")
     bunch = np.loadtxt("../res/bunch_6d_n=1e5.txt.gz")
-    bunch = torch.from_numpy(bunch)[:10]
+    bunch = torch.as_tensor(bunch, dtype=dtype)[:10]
     bunch = bunch - bunch.permute(1, 0).mean(dim=1)  # set bunch centroid to 0 for each dim
     # bunch = bunch + torch.tensor([1e-3, 0, 1e-3, 0, 0, 0], dtype=torch.double)  # bunch has transverse offset
 

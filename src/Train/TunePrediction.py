@@ -9,20 +9,20 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.utils.data
 
-from ocelot.cpbd import elements
+from OcelotMinimal.cpbd import elements
 
 import Simulation.Elements
-from Simulation.Lattice import SIS18_Cell_minimal
+from Simulation.Lattice import SIS18_Lattice
 from Simulation.Models import LinearModel
 import PlotTrajectory
 
 
 # specify device and dtype
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dtype = torch.double
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # load bunch
-dim = 4
+dim = 6
 
 bunch = np.loadtxt("../../res/bunch_6d_n=1e5.txt.gz")
 bunch = torch.as_tensor(bunch, dtype=dtype)[:,:dim]
@@ -30,17 +30,17 @@ bunch.to(device)
 bunch = bunch - bunch.permute(1, 0).mean(dim=1)  # set bunch centroid to 0 for each dim
 
 # create model of SIS18 cell
-lattice = SIS18_Cell_minimal()
+lattice = SIS18_Lattice()
 model = LinearModel(lattice, dim, dtype).to(device)
 # model.requires_grad_(False)
 
 # create model of perturbed cell
-perturbedLattice = SIS18_Cell_minimal()
+perturbedLattice = SIS18_Lattice()
 
 for element in perturbedLattice.sequence:
     if type(element) is elements.Quadrupole:
         # perturb first quadrupole
-        element.k1 = 0.4 * element.k1
+        element.k1 = 0.95 * element.k1
         break
 
 perturbedLattice.update_transfer_maps()
@@ -51,7 +51,11 @@ perturbedModel.requires_grad_(False)
 fig, axes = plt.subplots(3, sharex=True)
 
 PlotTrajectory.plotBeamSigma(axes[0], PlotTrajectory.track(model, bunch, 1), lattice)
+axes[0].set_xlabel("pos / m")
+axes[0].set_ylabel("before")
+
 PlotTrajectory.plotBeamSigma(axes[1], PlotTrajectory.track(perturbedModel, bunch, 1), perturbedLattice)
+axes[1].set_ylabel("perturbed")
 
 # build training set from perturbed model
 with torch.no_grad():
@@ -63,13 +67,13 @@ trainLoader = torch.utils.data.DataLoader(trainSet, batch_size=400,
 
 # optimization setup
 criterion = nn.MSELoss()
-optimizer = optim.SGD(model.parameters(), lr=0.0001, momentum=0.9)
+optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 # optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 # train loop
 print(model.symplecticRegularization())
 
-for epoch in range(500):
+for epoch in range(5):
     for i, data in enumerate(trainLoader):
         inputs, labels = data
         # zero the parameter gradients
@@ -96,6 +100,7 @@ for epoch in range(500):
 
 # plot envelope of trained model
 PlotTrajectory.plotBeamSigma(axes[2], PlotTrajectory.track(model, bunch, 1), lattice)
+axes[2].set_ylabel("after")
 
 plt.show()
 plt.close()

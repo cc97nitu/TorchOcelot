@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from ocelot.cpbd import elements
+from OcelotMinimal.cpbd import elements
 
 from Simulation.Elements import LinearMap, SecondOrderMap
 

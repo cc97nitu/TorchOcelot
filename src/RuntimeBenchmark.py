@@ -23,6 +23,7 @@ def track(model, bunch, turns: int):
 
 if __name__ == "__main__":
     # choose device
+    dtype = torch.float32
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("running on {}".format(str(device)))
 
@@ -30,13 +31,13 @@ if __name__ == "__main__":
     print("building model")
     dim = 6
     lattice = SIS18_Lattice_minimal(nPasses=1)
-    model = SecondOrderModel(lattice, dim)
+    model = SecondOrderModel(lattice, dim, dtype=dtype)
     model.to(device)
 
     # load bunch
     print("loading bunch")
     bunch = np.loadtxt("../res/bunch_6d_n=1e6.txt.gz")
-    bunch = torch.from_numpy(bunch)
+    bunch = torch.as_tensor(bunch, dtype=dtype)
     bunch.to(device)
 
     # track

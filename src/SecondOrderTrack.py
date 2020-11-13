@@ -7,6 +7,7 @@ from Simulation.Models import SecondOrderModel
 
 
 # choose device
+dtype = torch.float32
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("running on {}".format(str(device)))
 
@@ -14,13 +15,13 @@ print("running on {}".format(str(device)))
 print("building model")
 dim = 6
 lattice = SIS18_Lattice_minimal(nPasses=1)
-model = SecondOrderModel(lattice, dim)
+model = SecondOrderModel(lattice, dim, dtype=dtype)
 model.to(device)
 
 # load bunch
 print("loading bunch")
 bunch = np.loadtxt("../res/bunch_6d_n=1e5.txt.gz")
-bunch = torch.from_numpy(bunch)[:1000]
+bunch = torch.as_tensor(bunch, dtype=dtype)[:1000]
 
 # track
 turns = int(1e3)  # turns during injection plateau

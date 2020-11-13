@@ -1,6 +1,6 @@
-from ocelot.cpbd import elements
-from ocelot.cpbd import optics
-from ocelot.cpbd.magnetic_lattice import MagneticLattice
+from OcelotMinimal.cpbd import elements
+from OcelotMinimal.cpbd import optics
+from OcelotMinimal.cpbd.magnetic_lattice import MagneticLattice
 
 
 class Lattice(MagneticLattice):
