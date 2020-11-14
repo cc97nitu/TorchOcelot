@@ -9,21 +9,21 @@ class LinearMap(nn.Linear):
         self.element = element
 
         # dimension of transfer matrix
-        dim = rMatrix.shape
+        self.dim = rMatrix.shape[0]
 
         # set symplectic structure matrix
-        if dim[0] == 2:
+        if self.dim == 2:
             symStruct = torch.tensor([[0,1],[-1,0]], dtype=dtype)
-        elif dim[0] == 4:
+        elif self.dim == 4:
             symStruct = torch.tensor([[0,1,0,0],[-1,0,0,0],[0,0,0,1],[0,0,-1,0]], dtype=dtype)
-        elif dim[0] == 6:
+        elif self.dim == 6:
             symStruct = torch.tensor(
                 [[0,1,0,0,0,0],[-1,0,0,0,0,0],[0,0,0,1,0,0],[0,0,-1,0,0,0],[0,0,0,0,0,1],
                  [0,0,0,0,-1,0]], dtype=dtype)
         else:
-            raise NotImplementedError("phase space dimension of {} not supported".format(dim))
+            raise NotImplementedError("phase space dimension of {} not supported".format(self.dim))
 
-        super().__init__(in_features=dim[0], out_features=dim[1], bias=False)
+        super().__init__(in_features=self.dim, out_features=self.dim, bias=False)
         self.register_buffer("symStruct", symStruct)
 
         # set initial weights
@@ -45,10 +45,10 @@ class SecondOrderMap(nn.Module):
         self.element = element
 
         # dimension of transfer matrix
-        dim = rMatrix.shape
+        self.dim = rMatrix.shape
 
         # first order
-        self.w1 = nn.Linear(in_features=dim[0], out_features=dim[1], bias=False)
+        self.w1 = nn.Linear(in_features=self.dim[0], out_features=self.dim[1], bias=False)
         w1Weights = torch.as_tensor(rMatrix, dtype=dtype)
         self.w1.weight = nn.Parameter(w1Weights)
 

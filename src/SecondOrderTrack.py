@@ -3,7 +3,7 @@ import numpy as np
 import torch
 
 from Simulation.Lattice import SIS18_Lattice_minimal
-from Simulation.Models import SecondOrderModel, LinearModel
+from Simulation.Models import SecondOrderModel
 
 
 # choose device
@@ -15,7 +15,7 @@ print("running on {}".format(str(device)))
 print("building model")
 dim = 6
 lattice = SIS18_Lattice_minimal(nPasses=1)
-model = LinearModel(lattice, dim, dtype=dtype)
+model = SecondOrderModel(lattice, dim, dtype=dtype)
 model.to(device)
 
 # load bunch

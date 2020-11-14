@@ -64,7 +64,7 @@ if __name__ == "__main__":
     model = SecondOrderModel(lattice, dim, dtype=dtype)
 
     t0 = time.time()
-    print(getTuneChromaticity(model, 100))
+    print(getTuneChromaticity(model, 100, dtype))
     print("chromaticity obtained within {:.2f}".format(time.time() - t0))
     # # set up particles
     # dp = np.linspace(-5e-3, 5e-3, 9)

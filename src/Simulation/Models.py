@@ -1,3 +1,5 @@
+import numpy
+
 import torch
 import torch.nn as nn
 
@@ -51,6 +53,7 @@ class Model(nn.Module):
 class LinearModel(Model):
     def __init__(self, lattice, dim=4, dtype: torch.dtype = torch.float32):
         super().__init__(lattice)
+        self.dim = dim
 
         # create maps
         self.maps = nn.ModuleList()
@@ -69,6 +72,24 @@ class LinearModel(Model):
 
         penalties = torch.stack(penalties)
         return penalties.sum()
+
+    def getTunes(self) -> list:
+        # calculate one-turn map
+        oneTurnMap = torch.eye(self.dim)
+        for m in self.maps:
+            oneTurnMap = torch.matmul(m.weight, oneTurnMap)
+
+        xTrace = oneTurnMap[:2,:2].trace()
+        xTune = torch.acos(1 / 2 * xTrace).item() / (2*numpy.pi)
+
+        if self.dim == 4 or self.dim == 6:
+            yTrace = oneTurnMap[2:4, 2:4].trace()
+            yTune = torch.acos(1 / 2 * yTrace).item() / (2 * numpy.pi)
+
+            return [xTune, yTune]
+
+        return [xTune,]
+
 
 
 class SecondOrderModel(Model):
