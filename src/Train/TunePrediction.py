@@ -24,9 +24,30 @@ dtype = torch.float32
 device = torch.device("cpu")
 print("running on {}".format(device))
 
-# load bunch
+# create model of SIS18
 dim = 6
 
+lattice = SIS18_Lattice()
+model = LinearModel(lattice, dim, dtype)
+model = model.to(device)
+model.setTrainable("quadrupoles")
+
+# get index of first quad
+for i in range(len(lattice.sequence)):
+    if type(lattice.sequence[i]) is elements.Quadrupole:
+        idxFirstQuad = i
+
+# create model of perturbed accelerator
+perturbedLattice = SIS18_Lattice()
+
+perturbedLattice.sequence[idxFirstQuad].k1 *= 0.9
+perturbedLattice.update_transfer_maps()
+
+perturbedModel = LinearModel(perturbedLattice, dim, dtype)
+perturbedModel = perturbedModel.to(device)
+perturbedModel.requires_grad_(False)
+
+# load bunch
 bunch = np.loadtxt("../../res/bunch_6d_n=1e5.txt.gz")
 bunch = torch.as_tensor(bunch, dtype=dtype)[:20,:dim]
 bunch = bunch - bunch.permute(1, 0).mean(dim=1)  # set bunch centroid to 0 for each dim
@@ -35,25 +56,6 @@ bunch = bunch.to(device)
 # bunch = torch.tensor([[1e-3, 0, 1e-3, 0, 0, 0],], dtype=dtype)
 # bunch = bunch.to(device)
 
-# create model of SIS18
-lattice = SIS18_Lattice_minimal()
-model = LinearModel(lattice, dim, dtype)
-model = model.to(device)
-model.setTrainable("quadrupoles")
-
-# create model of perturbed accelerator
-perturbedLattice = SIS18_Lattice_minimal()
-
-for element in perturbedLattice.sequence:
-    if type(element) is elements.Quadrupole:
-        # perturb first quadrupole
-        element.k1 = 0.95 * element.k1
-        break
-
-perturbedLattice.update_transfer_maps()
-perturbedModel = LinearModel(perturbedLattice, dim, dtype)
-perturbedModel = perturbedModel.to(device)
-perturbedModel.requires_grad_(False)
 
 # show initial tunes
 print("initial tunes: ideal={}, perturbed={}".format(model.getTunes(), perturbedModel.getTunes()))
@@ -70,8 +72,11 @@ PlotTrajectory.plotTrajectories(axes[1], PlotTrajectory.track(perturbedModel, bu
 axes[1].set_ylabel("perturbed")
 
 # build training set from perturbed model
+outputPerElement = False  # model output shall contain phase space after each element, overwrites outputAtBPM
+outputAtBPM = True
+
 with torch.no_grad():
-    bunchLabels = perturbedModel(bunch, outputPerElement=True)
+    bunchLabels = perturbedModel(bunch, outputPerElement=outputPerElement, outputAtBPM=outputAtBPM)
 
 bunch = bunch.to("cpu")
 bunchLabels = bunchLabels.to("cpu")
@@ -86,7 +91,7 @@ criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 # train loop
-print("initial loss: {}, initial regularization {}".format(criterion(model(bunch, outputPerElement=True), bunchLabels), model.symplecticRegularization()))
+print("initial loss: {}, initial regularization {}".format(criterion(model(bunch, outputPerElement=outputPerElement, outputAtBPM=outputAtBPM), bunchLabels), model.symplecticRegularization()))
 
 t0 = time.time()
 for epoch in range(1000):
@@ -98,7 +103,7 @@ for epoch in range(1000):
         optimizer.zero_grad()
 
         # forward, backward
-        output = model(inputs, outputPerElement=True)
+        output = model(inputs, outputPerElement=outputPerElement, outputAtBPM=outputAtBPM)
         loss = criterion(output, labels) + model.symplecticRegularization()
         # loss = criterion(output, labels)
         loss.backward()
@@ -114,7 +119,7 @@ for epoch in range(1000):
         print("\r" + "epoch: {}".format(epoch + 1))
 
 print("training completed within {:.2f}s".format(time.time() - t0))
-print("final loss: {}, final regularization {}".format(criterion(model(bunch, outputPerElement=True), bunchLabels), model.symplecticRegularization()))
+print("final loss: {}, final regularization {}".format(criterion(model(bunch, outputPerElement=outputPerElement, outputAtBPM=outputAtBPM), bunchLabels), model.symplecticRegularization()))
 
 # plot envelope of trained model
 # PlotTrajectory.plotBeamSigma(axes[2], PlotTrajectory.track(model, bunch.to(device), 1), lattice)

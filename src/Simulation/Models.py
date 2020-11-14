@@ -14,17 +14,26 @@ class Model(nn.Module):
         self.lattice = lattice
         return
 
-    def forward(self, x, outputPerElement: bool = False):
+    def forward(self, x, outputPerElement: bool = False, outputAtBPM: bool = False):
         if outputPerElement:
             outputs = list()
-            for map in self.maps:
-                x = map(x)
+            for m in self.maps:
+                x = m(x)
                 outputs.append(x)
 
             return torch.stack(outputs).permute(1, 2, 0)  # particle, dim, element
+        elif outputAtBPM:
+            outputs = list()
+            for m in self.maps:
+                x = m(x)
+
+                if type(m.element) is elements.Monitor:
+                    outputs.append(x)
+
+            return torch.stack(outputs).permute(1, 2, 0)  # particle, dim, element
         else:
-            for map in self.maps:
-                x = map(x)
+            for m in self.maps:
+                x = m(x)
 
             return x
 

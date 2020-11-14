@@ -13,8 +13,6 @@ def track(model, bunch, turns: int):
     bunch.to(device)
 
     # track
-    print("started tracking {:.0e} particles for {:.1e} turns".format(len(bunch), turns))
-
     with torch.no_grad():
         t0 = time.time()
 
@@ -27,8 +25,6 @@ def track(model, bunch, turns: int):
             y = model(y, outputPerElement=True)
             multiTurnOutput.append(y)
             y = y[:, :, -1]
-
-        print("tracking finished within {:.2f}s".format(time.time() - t0))
 
     # prepare tracks for plotting
     trackResults = torch.cat(multiTurnOutput, 2)  # indices: particle, dim, element
