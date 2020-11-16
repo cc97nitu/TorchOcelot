@@ -14,26 +14,29 @@ class Model(nn.Module):
         self.lattice = lattice
         return
 
-    def forward(self, x, outputPerElement: bool = False, outputAtBPM: bool = False):
+    def forward(self, x, nTurns: int = 1, outputPerElement: bool = False, outputAtBPM: bool = False):
         if outputPerElement:
             outputs = list()
-            for m in self.maps:
-                x = m(x)
-                outputs.append(x)
+            for turn in range(nTurns):
+                for m in self.maps:
+                    x = m(x)
+                    outputs.append(x)
 
             return torch.stack(outputs).permute(1, 2, 0)  # particle, dim, element
         elif outputAtBPM:
             outputs = list()
-            for m in self.maps:
-                x = m(x)
+            for turn in range(nTurns):
+                for m in self.maps:
+                    x = m(x)
 
-                if type(m.element) is elements.Monitor:
-                    outputs.append(x)
+                    if type(m.element) is elements.Monitor:
+                        outputs.append(x)
 
             return torch.stack(outputs).permute(1, 2, 0)  # particle, dim, element
         else:
-            for m in self.maps:
-                x = m(x)
+            for turn in range(nTurns):
+                for m in self.maps:
+                    x = m(x)
 
             return x
 
@@ -73,23 +76,26 @@ class LinearModel(Model):
 
         return
 
-    def symplecticRegularization(self):
+    def symplecticRegularization(self, quadsOnly=False):
         """Sum up symplectic regularization penalties from all layers."""
         penalties = list()
-        for map in self.maps:
-            penalties.append(map.symplecticRegularization())
+
+        if quadsOnly:
+            for map in self.maps:
+                if type(map.element) is elements.Quadrupole:
+                    penalties.append(map.symplecticRegularization())
+        else:
+            for map in self.maps:
+                penalties.append(map.symplecticRegularization())
 
         penalties = torch.stack(penalties)
         return penalties.sum()
 
     def getTunes(self) -> list:
-        # calculate one-turn map
-        oneTurnMap = torch.eye(self.dim)
-        for m in self.maps:
-            oneTurnMap = torch.matmul(m.weight, oneTurnMap)
+        oneTurnMap = self.oneTurnMap()
 
-        xTrace = oneTurnMap[:2,:2].trace()
-        xTune = torch.acos(1 / 2 * xTrace).item() / (2*numpy.pi)
+        xTrace = oneTurnMap[:2, :2].trace()
+        xTune = torch.acos(1 / 2 * xTrace).item() / (2 * numpy.pi)
 
         if self.dim == 4 or self.dim == 6:
             yTrace = oneTurnMap[2:4, 2:4].trace()
@@ -97,13 +103,21 @@ class LinearModel(Model):
 
             return [xTune, yTune]
 
-        return [xTune,]
+        return [xTune, ]
 
+    def oneTurnMap(self):
+        # calculate one-turn map
+        oneTurnMap = torch.eye(self.dim)
+        for m in self.maps:
+            oneTurnMap = torch.matmul(m.weight, oneTurnMap)
+
+        return oneTurnMap
 
 
 class SecondOrderModel(Model):
     def __init__(self, lattice, dim=4, dtype: torch.dtype = torch.float32):
         super().__init__(lattice)
+        self.dim = dim
 
         # create maps
         self.maps = nn.ModuleList()
@@ -122,13 +136,11 @@ if __name__ == "__main__":
     dim = 6
     dtype = torch.float32
     lattice = SIS18_Cell()
-    model = SecondOrderModel(lattice, dim, dtype=dtype)
+    model = LinearModel(lattice, dim=dim, dtype=dtype)
 
-    for param in model.parameters():
-        print(param.requires_grad)
+    # symplectic reg. buggy?
+    for m in model.maps:
+        print(type(m.element), m.symplecticRegularization())
 
-    print("only magnets")
-    model.setTrainable("magnets")
-
-    for param in model.parameters():
-        print(param.requires_grad)
+        if type(m.element) is elements.RBend:
+            print(m.weight)

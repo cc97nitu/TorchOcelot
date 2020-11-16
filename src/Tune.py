@@ -9,100 +9,90 @@ from Simulation.Lattice import SIS18_Lattice_minimal, SIS18_Lattice
 from Simulation.Models import LinearModel, SecondOrderModel
 
 
-def getTuneFFT(x: torch.Tensor, model, turns: int):
-    # track particle through lattice
+def getTuneFFT(bunch: torch.Tensor, model, turns: int):
+    # track
     with torch.no_grad():
-        phaseSpace = [x, ]
-
+        phaseSpace = [bunch, ]
         for turn in range(turns):
-            x = model(x)
-            phaseSpace.append(x)
+            phaseSpace.append(model(phaseSpace[-1]))
 
-        phaseSpace = torch.stack(phaseSpace)
+    phaseSpace = torch.stack(phaseSpace)  # turn, particle, dim
+    phaseSpace = phaseSpace.permute((1,2,0))  # particle, dim, turn
+    phaseSpace = phaseSpace[:,[0,2],:]  # keep only x-, and y-coord
 
-    # do fft of x Coord
-    xCoord = phaseSpace.transpose(1,0)[0]
+    # remove dispersion
+    mean = phaseSpace.mean(dim=2).unsqueeze(-1)
+    phaseSpace = phaseSpace - mean
 
-    xCoord = xCoord - torch.mean(xCoord)    # remove dispersion
-    fft = torch.fft.fft(xCoord)
-    fft = torch.abs(fft)
+    # apply fft
+    windowSize = 1 * turns  # zero padding?
 
+    fft = torch.abs(torch.fft.fft(phaseSpace, n=windowSize, dim=2, norm="forward"))
+
+    # calculate frequencies
     sampleRatePerTurn = 1
-    freqs = np.fft.fftfreq(len(fft), sampleRatePerTurn)
-    idx = np.argsort(freqs)
+    frequencies = np.fft.fftfreq(windowSize, sampleRatePerTurn)
 
-    # remove negative frequencies
-    idx = idx[len(idx)//2:]
+    idx = np.argsort(frequencies)
+    idx = idx[len(idx)//2:]  # remove negative frequencies
 
-    return freqs[idx], fft[idx]
+    return frequencies[idx], fft[:,:,idx]
 
 
 def getTuneChromaticity(model, turns: int, dtype: torch.dtype):
     # set up particles
-    dp = np.linspace(-5e-3, 5e-3, 9)
-    bunch = torch.tensor([[1e-2,0,1e-2,0,0,i] for i in dp], dtype=dtype)
+    if model.dim == 6:
+        dp = np.linspace(-5e-3, 5e-3, 9)
+        bunch = torch.tensor([[1e-2,0,1e-2,0,0,i] for i in dp], dtype=dtype)
+    elif model.dim == 4:
+        bunch = torch.tensor([[1e-2,0,1e-2,0],], dtype=dtype)
+    elif model.dim == 2:
+        bunch = torch.tensor([[1e-2,0],], dtype=dtype)
+    else:
+        raise RuntimeError("illegal model dimension")
 
-    # track and fft
-    fftList = list()
-    for particle in range(len(bunch)):
-        freqs, fft = getTuneFFT(bunch[particle], model, turns)
-        fftList.append(fft)
+    # bring model and bunch to same location
+    bunch.to("cpu")
+    model.to("cpu")
 
-    # get tunes from spectrum
-    tunes = [freqs[np.argmax(fft)] for fft in fftList]
-    fit = np.polyfit(dp, tunes, deg=1)
+    # get fft
+    frequencies, fft = getTuneFFT(bunch, model, turns)
 
-    return fit
+    # obtain tune and chromaticity from linear fit
+    fftArgmax = torch.argmax(fft, dim=2, keepdim=False).transpose(1,0)  # dim, particle
+
+    tunesX = frequencies[fftArgmax[0]]
+    tunesY = frequencies[fftArgmax[1]]
+
+    if model.dim == 6:
+        xFit = np.polyfit(dp, tunesX, deg=1)
+        yFit = np.polyfit(dp, tunesY, deg=1)
+        return xFit, yFit
+    else:
+        return tunesX, tunesY  # all tunes shall be the same
 
 
 if __name__ == "__main__":
     # create model of SIS18
     dim = 6
     dtype = torch.float32
-    # lattice = SIS18_Lattice_minimal(nPasses=1)
     lattice = SIS18_Lattice(nPasses=1)
-    model = SecondOrderModel(lattice, dim, dtype=dtype)
+    # lattice = SIS18_Lattice(nPasses=1)
+    model = LinearModel(lattice, dim, dtype=dtype)
+    turns = 4000
 
-    t0 = time.time()
-    print(getTuneChromaticity(model, 100, dtype))
-    print("chromaticity obtained within {:.2f}".format(time.time() - t0))
-    # # set up particles
-    # dp = np.linspace(-5e-3, 5e-3, 9)
-    # x = torch.tensor([[1e-2,0,1e-2,0,0,i] for i in dp], dtype=dtype)
-    # # x = torch.tensor([[1e-2,0,1e-2,0,0,0],], dtype=torch.double)
-    #
-    #
-    # # find tune
-    # t0 = time.time()
-    #
-    # turns = 500
-    #
-    # freqs, _ = getTuneFFT(x[0], model, turns)
-    # fftList = list()
-    #
-    # for particle in range(len(x)):
-    #     _, fft = getTuneFFT(x[particle], model, turns)
-    #     fftList.append(fft)
-    #
-    # print("fft completed within {}".format(time.time() - t0))
-    #
-    # # plot spectra
-    # for particle in fftList:
-    #     plt.plot(freqs, particle)
-    #
-    # plt.xlabel("tune")
-    #
-    # plt.show()
-    # plt.close()
-    #
-    # # get tunes from spectrum
-    # print(dp, x[0][-1])
-    #
-    # tunes = [freqs[np.argmax(fft)] for fft in fftList]
-    #
-    # plt.plot(dp, tunes)
-    # plt.show()
-    # plt.close()
-    #
-    # fit = np.polyfit(dp, tunes, deg=1)
-    # print(fit)
+    # # obtain chroma and tune
+    # xFit, yFit = getTuneChromaticity(model, turns, dtype)
+    # print(xFit, yFit)
+
+    # plot spectrum
+    dp = np.linspace(-5e-3, 5e-3, 9)
+    bunch = torch.tensor([[1e-2,0,1e-2,0,0,i] for i in dp], dtype=dtype)
+
+    frequencies, fft = getTuneFFT(bunch, model, turns)
+    for f in fft:
+        plt.plot(frequencies, f[0])
+
+    plt.show()
+    plt.close()
+
