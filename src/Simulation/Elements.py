@@ -45,16 +45,16 @@ class SecondOrderMap(nn.Module):
         self.element = element
 
         # dimension of transfer matrix
-        self.dim = rMatrix.shape
+        self.dim: int = rMatrix.shape[0]
 
         # first order
-        self.w1 = nn.Linear(in_features=self.dim[0], out_features=self.dim[1], bias=False)
+        self.w1 = nn.Linear(in_features=self.dim, out_features=self.dim, bias=False)
         w1Weights = torch.as_tensor(rMatrix, dtype=dtype)
         self.w1.weight = nn.Parameter(w1Weights)
 
         # second order
         w2 = torch.as_tensor(tMatrix, dtype=dtype)
-        w2 = torch.reshape(w2, (6,6,6))
+        w2 = torch.reshape(w2, (self.dim, self.dim, self.dim))
         w2.requires_grad_(True)
         self.register_parameter("w2", nn.Parameter(w2))
 

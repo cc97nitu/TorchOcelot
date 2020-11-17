@@ -128,6 +128,15 @@ class SecondOrderModel(Model):
 
         return
 
+    def firstOrderOneTurnMap(self):
+        # calculate one-turn map
+        oneTurnMap = torch.eye(self.dim)
+        for m in self.maps:
+            oneTurnMap = torch.matmul(m.w1.weight, oneTurnMap)
+
+        return oneTurnMap
+
+
 
 if __name__ == "__main__":
     from Simulation.Lattice import SIS18_Cell

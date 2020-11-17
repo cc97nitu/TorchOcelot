@@ -10,10 +10,8 @@ import matplotlib.pyplot as plt
 from OcelotMinimal.cpbd import elements
 
 import PlotTrajectory
-from Simulation.Lattice import SIS18_Lattice, SIS18_Cell
+from LatticePetraIV import PetraIVLattice
 from Simulation.Models import SecondOrderModel
-
-from PetraIV.LatticePetraIV import PetraIVLattice
 
 # general properties
 dtype = torch.float32
@@ -21,9 +19,8 @@ device = torch.device("cpu")
 
 # create model of PetraIV
 dim = 2
-Lattice = PetraIVLattice
 
-lattice = Lattice()
+lattice = PetraIVLattice()
 model = SecondOrderModel(lattice, dim, dtype).to(device)
 
 print("ideal model transfer map:", model.firstOrderOneTurnMap())
@@ -33,10 +30,8 @@ for m in model.maps:
     bias = torch.zeros(dim, dtype=dtype)
     m.w1.bias = nn.Parameter(bias)
 
-# model.setTrainable("quadrupoles")
-
 # create perturbed version of PetraIV
-perturbedLattice = Lattice()
+perturbedLattice = PetraIVLattice()
 
 for element in perturbedLattice.sequence:
     if type(element) is elements.Quadrupole:
@@ -78,7 +73,7 @@ refLabel = perturbedModel(xRef, outputAtBPM=outputAtBPM)
 
 # train loop
 for epoch in range(100):
-    # optimizer.zero_grad()
+    optimizer.zero_grad()
 
     out = model(xRef, outputAtBPM=outputAtBPM)
     loss = criterion(refLabel, out)
@@ -95,24 +90,12 @@ PlotTrajectory.plotTrajectories(axes[2], PlotTrajectory.track(model, xRef, 1), l
 axes[2].set_xlabel("pos / m")
 axes[2].set_ylabel("trained")
 
-# all plots shall have the same y-range
-axes[0].set_ylim(axes[1].get_ylim())
-axes[2].set_ylim(axes[1].get_ylim())
-
 plt.show()
 plt.close()
 
-# # take a look at the one-turn maps
-# print("perturbed model:")
-# print(perturbedModel.firstOrderOneTurnMap())
-#
-# print("trained model:")
-# print(model.firstOrderOneTurnMap())
+# take a look at the one-turn maps
+print("perturbed model:")
+print(perturbedModel.firstOrderOneTurnMap())
 
-for i in range(len(model.maps)):
-    if type(model.maps[i].element) is elements.Quadrupole:
-        print(model.maps[i].w1.bias)
-        print(perturbedModel.maps[i].w1.bias)
-
-        print(model.maps[i].w1.weight)
-        print(perturbedModel.maps[i].w1.weight)
+print("trained model:")
+print(model.firstOrderOneTurnMap())
