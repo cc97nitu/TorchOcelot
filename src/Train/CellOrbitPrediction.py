@@ -5,6 +5,9 @@ sys.path.append("../")
 import torch
 import torch.nn as nn
 import torch.optim as optim
+
+import numpy as np
+import scipy.optimize
 import matplotlib.pyplot as plt
 
 from OcelotMinimal.cpbd import elements
@@ -72,13 +75,14 @@ axes[1].set_ylabel("perturbed")
 outputAtBPM = True
 
 criterion = nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr=1e-5, )
+optimizer = optim.Adam(model.parameters(), lr=1e-6, )
 
 refLabel = perturbedModel(xRef, outputAtBPM=outputAtBPM)
 
 # train loop
-for epoch in range(100):
-    # optimizer.zero_grad()
+print("training model")
+for epoch in range(50):
+    optimizer.zero_grad()
 
     out = model(xRef, outputAtBPM=outputAtBPM)
     loss = criterion(refLabel, out)
@@ -109,10 +113,15 @@ plt.close()
 # print("trained model:")
 # print(model.firstOrderOneTurnMap())
 
-for i in range(len(model.maps)):
-    if type(model.maps[i].element) is elements.Quadrupole:
-        print(model.maps[i].w1.bias)
-        print(perturbedModel.maps[i].w1.bias)
+# # take a look at the deviation per map
+# for i in range(len(model.maps)):
+#     if type(model.maps[i].element) is elements.Quadrupole:
+#         print(model.maps[i].w1.bias)
+#         print(perturbedModel.maps[i].w1.bias)
+#
+#         print(model.maps[i].w1.weight)
+#         print(perturbedModel.maps[i].w1.weight)
+#
+#         print(model.maps[i].w2)
+#         print(perturbedModel.maps[i].w2)
 
-        print(model.maps[i].w1.weight)
-        print(perturbedModel.maps[i].w1.weight)

@@ -53,27 +53,14 @@ class DummyLattice(Lattice):
     """Playground."""
     def __init__(self):
         # specify beam line elements
-        rb1 = elements.RBend(l=2.617993878, angle=0.2617993878, e1=0.1274090354, e2=0.1274090354)
-        rb2 = elements.RBend(l=2.617993878, angle=0.2617993878, e1=0.1274090354, e2=0.1274090354)
-
-        k1f = 3.12391e-01   # tune: 4.2 (whole ring)
-        k1d = -4.78047e-01  # tune: 3.3
-        qs1f = elements.Quadrupole(l=1.04, k1=k1f)
-        qs2d = elements.Quadrupole(l=1.04, k1=k1d)
-        qs3t = elements.Quadrupole(l=0.4804, k1=2 * k1f)
-
-        d1 = elements.Drift(0.645)
-        d2 = elements.Drift(0.9700000000000002)
-        d3 = elements.Drift(6.839011704000001)
-        d4 = elements.Drift(0.5999999999999979)
-        d5 = elements.Drift(0.7097999999999978)
-        d6 = elements.Drift(0.49979999100000283)
-
-        bpm = elements.Monitor()
+        d1 = elements.Drift(1)
+        qf = elements.Quadrupole(1, 0.5)
+        d2 = elements.Drift(1)
+        qd = elements.Quadrupole(1, -0.5)
 
 
         # set up beam line
-        cell = [d1, rb1, d2, rb2, d3, qs1f, d4, qs2d, d5, qs3t, d6, bpm]
+        cell = [d1, qf, d2, qd]
 
         super().__init__(cell)
 

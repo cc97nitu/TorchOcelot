@@ -94,7 +94,7 @@ optimizer = optim.Adam(model.parameters(), lr=0.001)
 print("initial loss: {}, initial regularization {}".format(criterion(model(bunch, outputPerElement=outputPerElement, outputAtBPM=outputAtBPM), bunchLabels), model.symplecticRegularization()))
 
 t0 = time.time()
-for epoch in range(1000):
+for epoch in range(2000):
     for i, data in enumerate(trainLoader):
         # inputs, labels = data
         inputs, labels = data[0].to(device), data[1].to(device)
@@ -104,11 +104,14 @@ for epoch in range(1000):
 
         # forward, backward
         output = model(inputs, outputPerElement=outputPerElement, outputAtBPM=outputAtBPM)
-        loss = criterion(output, labels) + model.symplecticRegularization()
+        loss = criterion(output, labels) + 10 * model.symplecticRegularization()
+        # loss = criterion(output, labels) + model.symplecticRegularization()
         # loss = criterion(output, labels)
         loss.backward()
 
         # do step in gradient descent
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1e-3)
+
         optimizer.step()
 
         # # report progress
@@ -126,6 +129,11 @@ print("final loss: {}, final regularization {}".format(criterion(model(bunch, ou
 PlotTrajectory.plotTrajectories(axes[2], PlotTrajectory.track(model, bunch.to(device), 1), lattice)
 axes[2].set_ylabel("after")
 axes[2].set_xlabel("pos / m")
+
+
+# show plot
+axes[0].set_ylim(axes[1].get_ylim())
+axes[2].set_ylim(axes[1].get_ylim())
 
 plt.show()
 plt.close()

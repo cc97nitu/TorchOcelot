@@ -1,100 +1,152 @@
 import sys
+
 sys.path.append("../")
 
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch.utils.data
+
+import numpy as np
+import scipy.optimize
+import matplotlib.pyplot as plt
 
 from OcelotMinimal.cpbd import elements
 
-import Simulation.Elements
-from Simulation.Lattice import SIS18_Cell_hCor
-from Simulation.Models import LinearModel
 import PlotTrajectory
+from Simulation.Lattice import SIS18_Lattice, SIS18_Cell  # correctors are defined as Hcor
+from Simulation.Models import SecondOrderModel
 
+from PetraIV.LatticePetraIV import PetraIVLattice  # correctors are defined as Marker
 
-# create model of SIS18 cell
-dim = 4
+# general properties
 dtype = torch.float32
-lattice = SIS18_Cell_hCor()
-model = LinearModel(lattice, dim, dtype=dtype)
-model.requires_grad_(False)
+device = torch.device("cpu")
 
-# load bunch
-bunch = np.loadtxt("../../res/bunch_6d_n=1e5.txt.gz")
-bunch = torch.as_tensor(bunch, dtype=dtype)[:,:4]
-bunch = bunch - bunch.permute(1, 0).mean(dim=1)  # set bunch centroid to 0 for each dim
+# create model of PetraIV
+dim = 2
+Lattice = PetraIVLattice
 
-# build training set from ideal model
-with torch.no_grad():
-    bunchLabels = model(bunch, outputPerElement=True)
+lattice = Lattice()
+model = SecondOrderModel(lattice, dim, dtype).to(device)
 
-trainSet = torch.utils.data.TensorDataset(bunch, bunchLabels)
-trainLoader = torch.utils.data.DataLoader(trainSet, batch_size=400,
-                                          shuffle=True, num_workers=2)
+for m in model.maps:
+    # add trainable bias to map
+    bias = torch.zeros(dim, dtype=dtype)
+    m.w1.bias = nn.Parameter(bias)
 
-# add horizontal kick to the first dipole
-for m in model.modules():
-    if type(m) is Simulation.Elements.LinearMap:
-        if type(m.element) is elements.RBend:
-            bias = torch.zeros(dim, dtype=dtype)
-            bias[1] = 1e-3
-            m.bias = nn.Parameter(bias)
-            m.bias.requires_grad_(False)
-            break
+# model.setTrainable("quadrupoles")
 
-# activate bias on correctors and mark them as trainable
-kicks = list()
-for m in model.modules():
-    if type(m) is Simulation.Elements.LinearMap:
-        if type(m.element) is elements.Hcor:
-            bias = torch.zeros(dim, dtype=dtype)
-            m.bias = nn.Parameter(bias)
-            m.bias.requires_grad_(True)
-            kicks.append(m.bias)
+# create perturbed version of PetraIV
+perturbedLattice = Lattice()
+
+for element in perturbedLattice.sequence:
+    if type(element) is elements.Quadrupole:
+        element.dx = torch.normal(mean=0., std=1e-5, size=(1,)).item()  # same sigma as in TM-PNN
+
+perturbedLattice.update_transfer_maps()
+
+perturbedModel = SecondOrderModel(perturbedLattice, dim, dtype).to(device)
+for m in perturbedModel.maps:
+    if type(m.element) is elements.Quadrupole:
+        # add kick from quadrupole misalignment
+        offset = torch.zeros(dim, dtype=dtype)
+        offset[0] = m.element.dx
+
+        kick = torch.matmul((m.w1.weight - torch.eye(dim, dtype=dtype)), offset)
+
+        m.w1.bias = nn.Parameter(kick)
+
+perturbedModel.requires_grad_(False)
+
+# create reference particle
+xRef = torch.zeros((1, dim), dtype=dtype)
+
+# plot initial trajectories
+fig, axes = plt.subplots(4, sharex=True)
+PlotTrajectory.plotTrajectories(axes[0], PlotTrajectory.track(model, xRef, 1), lattice)
+axes[0].set_ylabel("ideal")
+
+PlotTrajectory.plotTrajectories(axes[1], PlotTrajectory.track(perturbedModel, xRef, 1), lattice)
+axes[1].set_ylabel("perturbed")
 
 # optimization setup
+outputAtBPM = True
+
 criterion = nn.MSELoss()
-optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+optimizer = optim.Adam(model.parameters(), lr=1e-5, )
+
+refLabel = perturbedModel(xRef, outputAtBPM=outputAtBPM)
 
 # train loop
+print("training model")
+for epoch in range(200):
+    optimizer.zero_grad()
 
-for epoch in range(10):
-    for i, data in enumerate(trainLoader):
-        inputs, labels = data
-        # zero the parameter gradients
-        optimizer.zero_grad()
+    out = model(xRef, outputAtBPM=outputAtBPM)
+    loss = criterion(refLabel, out)
+    loss.backward()
 
-        # forward, backward
-        output = model(inputs, outputPerElement=True)
-        # loss = criterion(output, labels) + 2 * kickReg()
-        loss = criterion(output, labels)
-        loss.backward()
+    torch.nn.utils.clip_grad_norm_(model.parameters(), 1e-10)
+    optimizer.step()
 
-        # do step in gradient descent
-        optimizer.step()
+    if epoch % 10 == 9:
+        print("loss: {}".format(loss.item()))
 
-        # # report progress
-        # if i % 100 == 99:
-        #     print(loss.item())
+# plot final trajectory
+PlotTrajectory.plotTrajectories(axes[2], PlotTrajectory.track(model, xRef, 1), lattice)
+axes[2].set_ylabel("trained")
 
-    # calculate loss over bunch
-    with torch.no_grad():
-        loss = criterion(model(bunch, outputPerElement=True), bunchLabels)
 
-    print("loss: {}, regularization: {}".format(loss.item(), None))
+"""
+************
+correct orbits 
+************
+"""
 
-with torch.no_grad():
-    print("final loss: {}".format(criterion(bunchLabels, model(bunch, outputPerElement=True)).item()))
+# find correctors in model
+correctors = list()
+for m in model.maps:
+    if type(m.element) is elements.Marker:
+        # add bias
+        m.w1.bias = nn.Parameter(torch.zeros(dim, dtype=dtype))
+        correctors.append(m)
 
-# plot trajectories from trained model
-PlotTrajectory.plotBeamCentroid(PlotTrajectory.track(model, bunch, 1), lattice)
+if not correctors:
+    print("no correctors present")
+    exit()
+else:
+    print("found {} correctors".format(len(correctors)))
 
-# what happened to the correctors?
-for m in model.modules():
-    if type(m) is Simulation.Elements.LinearMap:
-        if type(m.element) is elements.Hcor:
-            print(m.bias)
 
+def applyCorrectorSettings(settings: np.array):
+    # update correctors
+    for corrector, kick in zip(correctors, settings):
+        corrector.w1.bias[1] = kick
+
+    # observe trajectory
+    out = model(xRef, outputAtBPM=outputAtBPM)
+
+    # max orbit deviation
+    maxDev = torch.abs(out)[0].max()  # restrict to x-coord
+    return maxDev.item()
+
+
+# minimize loss using correctors
+print("optimizing corrector settings")
+optimRes = scipy.optimize.minimize(applyCorrectorSettings, np.zeros(len(correctors)), tol=1e-6, method="Nelder-Mead",
+                                   options={"maxiter": 200, "disp": True, 'fatol': 1e-6, 'xatol': 1e-6})
+print(optimRes)
+
+# show corrections
+PlotTrajectory.plotTrajectories(axes[3], PlotTrajectory.track(model, xRef, 1), lattice)
+
+axes[3].set_xlabel("pos / m")
+axes[3].set_ylabel("corrected")
+
+# all plots shall have the same y-range
+axes[0].set_ylim(axes[1].get_ylim())
+axes[2].set_ylim(axes[1].get_ylim())
+axes[3].set_ylim(axes[1].get_ylim())
+
+plt.show()
+plt.close()
