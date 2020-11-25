@@ -11,7 +11,7 @@ def driftMap(length: float):
 
 
 def quadMap(length: float, k1: float):
-    m = np.array([[1,0,0,0],[-1*length*k1,1,0,0],[0,0,1,0],[0,0,length*k1,0]])
+    m = np.array([[1,0,0,0],[-1*length*k1,1,0,0],[0,0,1,0],[0,0,length*k1,1]])
     return m
 
 
@@ -39,27 +39,66 @@ class Quadrupole(object):
         return x
 
 
+class QuadrupoleN(object):
+    def __init__(self, length, k1, order=2):
+        if order == 2:
+            coeffC = [1/2, 1/2]
+            coeffD = [1,0]
+        elif order == 3:
+            coeffC = [2/3, -2/3, 1]
+            coeffD = [7/24, 3/4, -1/24]
+        elif order == 4:
+            coeffC = [0.6756,0.411, 0.411, 0.6756]
+            coeffD = [0,0.82898,0.72991,0.82898]
+
+        self.maps = list()
+        for c, d in zip(coeffC, coeffD):
+            if c:
+                self.maps.append(driftMap(c * length))
+            if d:
+                self.maps.append(quadMap(d*length, k1))
+
+        return
+
+    def __call__(self, *args, **kwargs):
+        x = args[0]
+        for m in self.maps:
+            x = np.matmul(m, x)
+
+        return x
+
+
 if __name__ == "__main__":
+    # pretty print of ndarray
+    np.set_printoptions(precision=4, suppress=True)
+
     # define FODO
-    k1 = 0.5
+    k1 = 0.3
 
     d1 = Drift(1)
     qf = Quadrupole(1, k1)
     d2 = Drift(2)
     qd = Quadrupole(1, -k1)
 
+    order = 4
+    qfN = QuadrupoleN(1, k1, order=order)
+    qdN = QuadrupoleN(1, -k1, order=order)
+
+    fodo = lambda x: qd(d2(qf(d1(x))))
+    fodoN = lambda x: qdN(d2(qfN(d1(x))))
+
     # create particle
     x0 = np.array([1e-3, 2e-3, 1e-3, 0])
 
     # track
-    x = qd(d2(qf(d1(x0))))
-
-    print(x)
-
-    print(d1(x0))
+    print("thin lens")
+    print("fodo: {}".format(fodo(x0)))
+    print("fodoN: {}".format(fodoN(x0)))
 
     #####################3
     # Ocelot
+    print("ocelot")
+
     lattice = DummyLattice()
     ocelotModel = LinearModel(lattice)
 

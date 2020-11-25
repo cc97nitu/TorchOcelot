@@ -53,10 +53,11 @@ class DummyLattice(Lattice):
     """Playground."""
     def __init__(self):
         # specify beam line elements
+        k1 = 0.3
         d1 = elements.Drift(1)
-        qf = elements.Quadrupole(1, 0.5)
-        d2 = elements.Drift(1)
-        qd = elements.Quadrupole(1, -0.5)
+        qf = elements.Quadrupole(1, k1)
+        d2 = elements.Drift(2)
+        qd = elements.Quadrupole(1, -k1)
 
 
         # set up beam line
