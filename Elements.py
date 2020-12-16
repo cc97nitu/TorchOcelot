@@ -3,10 +3,13 @@ import numpy
 import torch
 import torch.nn as nn
 
+import OcelotMinimal.cpbd.elements as elements
+
 
 class LinearMap(nn.Linear):
     def __init__(self, element, rMatrix: numpy.ndarray, dtype: torch.dtype = torch.float32):
         self.element = element
+        self.dtype = dtype
 
         # dimension of transfer matrix
         self.dim = rMatrix.shape[0]
@@ -30,6 +33,15 @@ class LinearMap(nn.Linear):
         weightMatrix = torch.as_tensor(rMatrix, dtype=dtype)
         self.weight = nn.Parameter(weightMatrix)
 
+        # modify gradients during backward pass
+        if type(element) is elements.Quadrupole:
+            self.weight.register_hook(self.updateGradient)
+
+            # quad trainable elements
+            self.quadIndices = torch.zeros((self.dim, self.dim), dtype=torch.bool)
+            for i,j in [[0,0], [0,1], [1,0], [1,1], [2,2], [2,3], [3,2], [3,3]]:
+                self.quadIndices[i,j] = 1
+
         return
 
     def symplecticRegularization(self):
@@ -37,6 +49,12 @@ class LinearMap(nn.Linear):
         penalty = torch.matmul(self.weight.transpose(1,0), torch.matmul(self.symStruct, self.weight)) - self.symStruct
         penalty = torch.norm(penalty)
         return penalty
+
+    def updateGradient(self, grad):
+        """Update gradient during backward pass."""
+        newGrad = torch.zeros((self.dim, self.dim), dtype=self.dtype)
+        newGrad[self.quadIndices] = grad[self.quadIndices]
+        return newGrad
 
 
 class SecondOrderMap(nn.Module):

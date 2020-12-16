@@ -66,6 +66,7 @@ class LinearModel(Model):
     def __init__(self, lattice, dim=4, dtype: torch.dtype = torch.float32):
         super().__init__(lattice)
         self.dim = dim
+        self.dtype = dtype
 
         # create maps
         self.maps = nn.ModuleList()
@@ -107,7 +108,7 @@ class LinearModel(Model):
 
     def oneTurnMap(self):
         # calculate one-turn map
-        oneTurnMap = torch.eye(self.dim)
+        oneTurnMap = torch.eye(self.dim, dtype=self.dtype)
         for m in self.maps:
             oneTurnMap = torch.matmul(m.weight, oneTurnMap)
 
