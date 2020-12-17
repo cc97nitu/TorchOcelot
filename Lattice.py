@@ -67,13 +67,13 @@ class DummyLattice(Lattice):
 
 class SIS18_Cell_minimal(Lattice):
     """SIS18 cell consisting of dipoles and quadrupoles."""
-    def __init__(self):
+    def __init__(self, k1f: float = 3.12391e-01, k1d: float = -4.78047e-01):
+        # default focusing strengths correspond to hor. / vert. tune of 4.2 resp. 3.3
+
         # specify beam line elements
         rb1 = elements.RBend(l=2.617993878, angle=0.2617993878, e1=0.1274090354, e2=0.1274090354)
         rb2 = elements.RBend(l=2.617993878, angle=0.2617993878, e1=0.1274090354, e2=0.1274090354)
 
-        k1f = 3.12391e-01   # tune: 4.2 (whole ring)
-        k1d = -4.78047e-01  # tune: 3.3
         qs1f = elements.Quadrupole(l=1.04, k1=k1f)
         qs2d = elements.Quadrupole(l=1.04, k1=k1d)
         qs3t = elements.Quadrupole(l=0.4804, k1=2 * k1f)
@@ -128,15 +128,13 @@ class SIS18_Cell_sext(Lattice):
 
 class SIS18_Cell(Lattice):
     """SIS18 cell consisting of dipoles and quadrupoles."""
-    def __init__(self):
+    def __init__(self, k1f: float = 3.12391e-01, k1d: float = -4.78047e-01):
         # specify beam line elements
         rb1a = elements.RBend(l=2.617993878 / 2, angle=0.2617993878 / 2, e1=0.1274090354, e2=0)
         rb1b = elements.RBend(l=2.617993878 / 2, angle=0.2617993878 / 2, e1=0, e2=0.1274090354)
         rb2a = elements.RBend(l=2.617993878 / 2, angle=0.2617993878 / 2, e1=0.1274090354, e2=0)
         rb2b = elements.RBend(l=2.617993878 / 2, angle=0.2617993878 / 2, e1=0, e2=0.1274090354)
 
-        k1f = 3.12391e-01   # tune: 4.2 (whole ring)
-        k1d = -4.78047e-01  # tune: 3.3
         qs1f = elements.Quadrupole(l=1.04, k1=k1f)
         qs2d = elements.Quadrupole(l=1.04, k1=k1d)
         qs3t = elements.Quadrupole(l=0.4804, k1=2 * k1f)
@@ -172,9 +170,9 @@ class SIS18_Cell(Lattice):
 
 class SIS18_Lattice(Lattice):
     """SIS18 multiturn lattice consisting of dipoles and quadrupoles."""
-    def __init__(self, nPasses: int = 1):
+    def __init__(self, k1f: float = 3.12391e-01, k1d: float = -4.78047e-01, nPasses: int = 1):
         # set up cell
-        cell = SIS18_Cell()
+        cell = SIS18_Cell(k1f, k1d)
 
         # ring consists of 12 cells
         lattice = list()
@@ -188,9 +186,9 @@ class SIS18_Lattice(Lattice):
 
 class SIS18_Lattice_minimal(Lattice):
     """SIS18 multiturn lattice consisting of dipoles and quadrupoles."""
-    def __init__(self, nPasses: int = 1):
+    def __init__(self, k1f: float = 3.12391e-01, k1d: float = -4.78047e-01, nPasses: int = 1):
         # set up cell
-        cell = SIS18_Cell_minimal()
+        cell = SIS18_Cell_minimal(k1f, k1d)
 
         # ring consists of 12 cells
         lattice = list()
