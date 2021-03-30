@@ -178,6 +178,7 @@ class SIS18_Lattice(Lattice):
         lattice = list()
         for i in range(12 * nPasses):
             lattice += cell.sequence
+            cell = SIS18_Cell(k1f, k1d)  # comment out for symmetric ring
 
         super(SIS18_Lattice, self).__init__(lattice)
         return
